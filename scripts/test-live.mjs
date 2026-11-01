@@ -164,7 +164,7 @@ try {
   await starter.evaluate((path) => require('electron').ipcRenderer.sendSync('vault-open', path, false), vault);
   page = await windowWith('index.html');
   // Tall enough for the whole note: Reading view keeps only the sections near the viewport.
-  await page.setViewportSize({ width: 1200, height: 8000 });
+  await page.setViewportSize({ width: 1200, height: 10000 });
   await page.waitForFunction(() => window.app?.workspace?.layoutReady, null, { timeout: 30000 });
   await page.evaluate(() => app.changeTheme('obsidian'));
   await page.evaluate(async (id) => {
@@ -180,6 +180,10 @@ try {
     await page.keyboard.press('Escape');
     await sleep(200);
   }
+  await check('the renderer does not start until a plot is drawn', async () => {
+    assert.equal(await page.evaluate((id) => !!app.plugins.plugins[id].host, manifest.id), false);
+  });
+
   await page.evaluate(async () => {
     const file = app.vault.getAbstractFileByPath('view-toggle.md');
     await app.workspace.getLeaf(false).openFile(file, { state: { mode: 'preview' } });
@@ -278,6 +282,27 @@ try {
     await page.screenshot({ path: join(shots, 'reading-dark-card.png') });
     await page.evaluate((id) => app.plugins.plugins[id].updateSettings({ followDarkTheme: true }), manifest.id);
     assert.equal((await look()).scheme, 'dark');
+  });
+
+  await check('without light-dark() support the original colours still draw', async () => {
+    // What a Chromium without light-dark() does: every declaration using it is dropped. gnuplot's
+    // colours are presentation attributes, which then show through.
+    const fallback = await page.evaluate(({ base, position }) => {
+      const svg = document.querySelectorAll(`.markdown-reading-view .${base}-fence`)[position].querySelector(`svg.${base}`).cloneNode(true);
+      for (const element of [svg, ...svg.querySelectorAll('*')]) {
+        const style = element.getAttribute('style');
+        if (style) element.setAttribute('style', style.split(';').filter((part) => !part.includes('light-dark(')).join(';'));
+      }
+      document.body.append(svg);
+      const lines = [...new Set([...svg.querySelectorAll('g[id*="gnuplot_plot_"] path')].map((path) => getComputedStyle(path).stroke))];
+      const texts = [...new Set([...svg.querySelectorAll('text')].map((text) => getComputedStyle(text).fill))];
+      svg.remove();
+      return { lines, texts };
+    }, { base: BASE, position: FIXTURE.palette });
+    for (const colour of ['rgb(148, 0, 211)', 'rgb(240, 228, 66)', 'rgb(86, 180, 233)', 'rgb(230, 159, 0)', 'rgb(0, 0, 0)']) {
+      assert.ok(fallback.lines.includes(colour), `${colour} in ${fallback.lines.join(' ')}`);
+    }
+    assert.deepEqual(fallback.texts, ['rgb(0, 0, 0)']);
   });
 
   await page.screenshot({ path: join(shots, 'reading-dark.png') });
@@ -449,6 +474,108 @@ try {
     assert.deepEqual(lightLook, { scheme: 'light', text: 'rgb(0, 0, 0)' });
     assert.deepEqual(views(light), []);
     await page.screenshot({ path: join(shots, 'reading-light.png') });
+  });
+
+  await check('a hover preview of a link to the note draws its plots with their attributes', async () => {
+    await writeFile(join(vault, 'links.md'), '# Links\n\nSee [[view-toggle]] for plots.\n');
+    await sleep(500);
+    await page.evaluate(async () => {
+      const preview = app.internalPlugins.plugins['page-preview'];
+      if (!preview.enabled) await preview.enable();
+      await app.workspace.getLeaf(false).openFile(app.vault.getAbstractFileByPath('links.md'), { state: { mode: 'preview' } });
+    });
+    await sleep(800);
+    const link = await page.evaluate(() => {
+      const a = app.workspace.activeLeaf.view.containerEl.querySelector('.markdown-reading-view a.internal-link');
+      a.scrollIntoView({ block: 'center' });
+      const r = a.getBoundingClientRect();
+      return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+    });
+    await page.mouse.move(link.x - 80, link.y);
+    await page.mouse.move(link.x, link.y, { steps: 5 });
+    let blocks = [];
+    for (let i = 0; i < 40; i++) {
+      await sleep(250);
+      blocks = await page.evaluate((base) => [...document.querySelectorAll(`.hover-popover .${base}-fence`)].map((fence) => ({
+        drawn: !!fence.querySelector(`.${base}-rendering svg.${base}, .${base}-error`), caption: fence.querySelector('figcaption')?.textContent ?? null })), BASE);
+      if (blocks.length && blocks.every((block) => block.drawn)) break;
+    }
+    // The popover draws only the sections near its top, and plots are tall: the first two blocks.
+    assert.ok(blocks.length >= 2, `${blocks.length} blocks in the preview`);
+    assert.ok(blocks.every((block) => block.drawn));
+    assert.ok(blocks.some((block) => block.caption === 'Figure 1: a cosine'));
+    await page.mouse.move(5, 5);
+    await page.evaluate(async () => {
+      await app.workspace.getLeaf(false).openFile(app.vault.getAbstractFileByPath('view-toggle.md'), { state: { mode: 'preview' } });
+    });
+    await settle('reading');
+  });
+
+  await check('Export to PDF prints every plot, drawn, with its caption, in light colours and without the button', async () => {
+    const pdf = join(root, 'export.pdf');
+    // The native save dialog cannot be driven: answer it with a path. Obsidian prints from a window
+    // of its own (window.open, as for pop-outs); while it exists, record what it holds. The last
+    // record is what was printed.
+    await page.evaluate((pdf) => {
+      Object.defineProperty(require('@electron/remote').dialog, 'showSaveDialog', {
+        configurable: true, writable: true, value: async () => ({ canceled: false, filePath: pdf })
+      });
+      window.__printed = null;
+      window.__printWindow = null;
+      const open = window.open;
+      window.__restoreOpen = () => { window.open = open; };
+      window.open = (...args) => (window.__printWindow = open.apply(window, args));
+      window.__printWatch = setInterval(() => {
+        const print = window.__printWindow?.document;
+        if (!print || !print.querySelector('[class$="-fence"]')) return;
+        window.__printed = [...print.querySelectorAll('[class$="-fence"]')].map((fence) => {
+          const svg = fence.querySelector('svg:not(.svg-icon)');
+          const button = fence.querySelector('button');
+          const view = fence.ownerDocument.defaultView;
+          return { drawn: !!svg || !!fence.querySelector('[class$="-error"]'), caption: fence.querySelector('figcaption')?.textContent ?? null,
+            scheme: svg ? view.getComputedStyle(svg).colorScheme : null, button: button ? view.getComputedStyle(button).opacity : null };
+        });
+      }, 50);
+    }, pdf);
+    await page.evaluate(() => app.commands.executeCommandById('workspace:export-pdf'));
+    await sleep(800);
+    await page.evaluate(() => [...document.querySelectorAll('.modal-container button')].find((button) => /export/i.test(button.textContent)).click());
+    let written = false;
+    for (let i = 0; i < 240 && !written; i++) {
+      await sleep(250);
+      written = (await readFile(pdf).catch(() => null))?.length > 1000;
+    }
+    const printed = await page.evaluate(() => { clearInterval(window.__printWatch); return window.__printed; });
+    await page.evaluate(() => window.__restoreOpen());
+    assert.ok(written, 'the PDF was written');
+    assert.equal(printed?.length, FIXTURE.fences);
+    assert.ok(printed.every((block) => block.drawn), JSON.stringify(printed));
+    assert.ok(printed.some((block) => block.caption === 'Figure 1: a cosine'));
+    assert.ok(printed.every((block) => block.scheme === null || block.scheme === 'light'), 'printed in light colours');
+    assert.ok(printed.every((block) => block.button === null || block.button === '0'), 'no button on paper');
+  });
+
+  await check('settings come from definitions, so Obsidian lists them, and a change keeps the saved flips', async () => {
+    await click('reading', FIXTURE.broken);
+    const shown = await page.evaluate(async (id) => {
+      app.setting.open();
+      app.setting.openTabById(id);
+      await new Promise((resolve) => setTimeout(resolve, 800));
+      const names = [...app.setting.activeTab.containerEl.querySelectorAll('.setting-item-name')].map((el) => el.textContent);
+      const numberField = !!app.setting.activeTab.containerEl.querySelector('input[type="number"][min="0.5"][max="60"]');
+      const tab = app.setting.pluginTabs.find((one) => one.id === id);
+      await tab.setControlValue('debug', true);
+      app.setting.close();
+      return { names, numberField, debug: app.plugins.plugins[id].settings.debug, defined: tab.getSettingDefinitions().map((item) => item.control?.key) };
+    }, manifest.id);
+    assert.deepEqual(shown.names, ['Render time limit', 'Follow dark themes', 'Debug logging']);
+    assert.equal(shown.numberField, true, 'drawn from the definitions: the time limit is a number field');
+    assert.deepEqual(shown.defined, ['timeoutSeconds', 'followDarkTheme', 'debug']);
+    assert.equal(shown.debug, true);
+    const saved = await storedToggles();
+    assert.equal(saved?.length, 1, 'the flip made before the change is still saved');
+    await click('reading', FIXTURE.broken);
+    await page.evaluate((id) => app.plugins.plugins[id].updateSettings({ debug: false }), manifest.id);
   });
 
   const modifyData = (text) => page.evaluate(async (text) => {

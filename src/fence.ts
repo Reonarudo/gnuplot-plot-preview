@@ -82,30 +82,21 @@ export interface FenceParts {
   rendering: HTMLElement;
 }
 
-/** The wrapper with its toggle, an empty rendering slot, and the source view. */
-export function buildFence(doc: Document, body: string, key: string): FenceParts {
-  const wrapper = doc.createElement('div');
-  wrapper.className = `${BASE_CLASS}-fence`;
-  wrapper.setAttribute('data-fence-key', key);
-
-  const button = doc.createElement('button');
-  button.type = 'button';
+/**
+ * The wrapper with its toggle, an empty rendering slot, and the source view, built inside
+ * `parent` (the element Obsidian hands the code block processor) with Obsidian's `createEl`, so
+ * every element belongs to the window the block is drawn in, pop-out windows included.
+ */
+export function buildFence(parent: HTMLElement, body: string, key: string): FenceParts {
+  const wrapper = parent.createDiv({ cls: `${BASE_CLASS}-fence`, attr: { 'data-fence-key': key } });
   // `clickable-icon` is Obsidian's own icon-button class, so the button takes the app's look.
-  button.className = `${BASE_CLASS}-toggle clickable-icon`;
-  button.setAttribute('aria-pressed', 'false');
-  button.setAttribute('aria-label', LABEL_SHOW_SOURCE);
-  for (const icon of [ICON_CODE, ICON_GRAPH]) button.append(parseSvg(doc, icon)!);
-
-  const rendering = doc.createElement('div');
-  rendering.className = `${BASE_CLASS}-rendering`;
-
-  const pre = doc.createElement('pre');
-  const code = doc.createElement('code');
-  code.className = `language-${BASE_CLASS}`;
-  code.textContent = body;
-  pre.append(code);
-
-  wrapper.append(button, rendering, pre);
+  const button = wrapper.createEl('button', {
+    cls: `${BASE_CLASS}-toggle clickable-icon`,
+    attr: { type: 'button', 'aria-pressed': 'false', 'aria-label': LABEL_SHOW_SOURCE }
+  });
+  for (const icon of [ICON_CODE, ICON_GRAPH]) button.append(parseSvg(wrapper.doc, icon)!);
+  const rendering = wrapper.createDiv({ cls: `${BASE_CLASS}-rendering` });
+  wrapper.createEl('pre').createEl('code', { cls: `language-${BASE_CLASS}`, text: body });
   return { wrapper, button, rendering };
 }
 
@@ -123,49 +114,30 @@ export function isSourceView(wrapper: Element): boolean {
 }
 
 /**
- * The plot in its frame: alt text as an accessible name around an `<svg>` (never around the
- * loading line), and a caption making the frame a figure, so the caption stays outside the image role.
+ * Put `content` in the plot's frame inside `rendering`: alt text as an accessible name around an
+ * `<svg>` (never around the loading line), and a caption making the frame a figure, so the
+ * caption stays outside the image role.
  */
-function wrap(doc: Document, content: Element, attributes: FenceAttributes): Element {
-  let node = content;
-  if (attributes.alt !== undefined && content.localName === 'svg') {
-    const image = doc.createElement('div');
-    image.setAttribute('role', 'img');
-    image.setAttribute('aria-label', attributes.alt);
-    image.append(node);
-    node = image;
-  }
-  const frame = doc.createElement(attributes.caption === undefined ? 'div' : 'figure');
-  frame.className = FRAME_CLASS;
-  frame.append(node);
-  if (attributes.caption !== undefined) {
-    const caption = doc.createElement('figcaption');
-    caption.textContent = attributes.caption;
-    frame.append(caption);
-  }
-  return frame;
+function frame(rendering: HTMLElement, content: Element, attributes: FenceAttributes): void {
+  const box = rendering.createEl(attributes.caption === undefined ? 'div' : 'figure', { cls: FRAME_CLASS });
+  const holder = attributes.alt !== undefined && content.localName === 'svg'
+    ? box.createDiv({ attr: { role: 'img', 'aria-label': attributes.alt } })
+    : box;
+  holder.append(content);
+  if (attributes.caption !== undefined) box.createEl('figcaption', { text: attributes.caption });
 }
 
 /** A status line while a plot is slow to arrive, framed like the plot so a caption still shows. */
 export function showLoading(rendering: HTMLElement, attributes: FenceAttributes): void {
-  const doc = rendering.ownerDocument;
-  const line = doc.createElement('p');
-  line.className = `${BASE_CLASS}-loading`;
-  line.setAttribute('role', 'status');
-  line.textContent = 'Loading gnuplot plot…';
-  rendering.replaceChildren(wrap(doc, line, attributes));
+  rendering.empty();
+  const line = rendering.createEl('p', { cls: `${BASE_CLASS}-loading`, attr: { role: 'status' }, text: 'Loading gnuplot plot…' });
+  frame(rendering, line, attributes);
 }
 
 /** An error card in place of the plot. */
 export function showError(rendering: HTMLElement, text: string): void {
-  const doc = rendering.ownerDocument;
-  const card = doc.createElement('div');
-  card.className = `${BASE_CLASS}-error`;
-  card.setAttribute('role', 'alert');
-  const pre = doc.createElement('pre');
-  pre.textContent = text;
-  card.append(pre);
-  rendering.replaceChildren(card);
+  rendering.empty();
+  rendering.createDiv({ cls: `${BASE_CLASS}-error`, attr: { role: 'alert' } }).createEl('pre', { text });
 }
 
 /** The library's result in the rendering slot: `print` notes above the plot, or an error card. */
@@ -174,25 +146,21 @@ export function showResult(rendering: HTMLElement, result: RenderResult, attribu
     showError(rendering, describe(result));
     return;
   }
-  const doc = rendering.ownerDocument;
-  const svg = parseSvg(doc, result.output);
+  const svg = parseSvg(rendering.doc, result.output);
   if (!svg) {
     showError(rendering, 'Gnuplot is unavailable: the renderer returned a plot that could not be read');
     return;
   }
   // Every colour gets its dark-theme counterpart; the stylesheet decides which one shows.
   themeSvg(svg);
-  const children: Node[] = [];
+  rendering.empty();
   // `print` output and gnuplot's warnings.
   if (result.notes.length) {
-    const notes = doc.createElement('div');
-    notes.className = `${BASE_CLASS}-notes`;
+    const notes = rendering.createDiv({ cls: `${BASE_CLASS}-notes` });
     result.notes.forEach((note, index) => {
-      if (index) notes.append(doc.createElement('br'));
-      notes.append(doc.createTextNode(note));
+      if (index) notes.createEl('br');
+      notes.appendText(note);
     });
-    children.push(notes);
   }
-  children.push(wrap(doc, svg, attributes));
-  rendering.replaceChildren(...children);
+  frame(rendering, svg, attributes);
 }

@@ -60,8 +60,9 @@ interface Drawn {
 export default class GnuplotPlugin extends Plugin {
   settings: Settings = DEFAULT_SETTINGS;
   private toggles!: ToggleStore;
+  /** The renderer, started by the first plot drawn (`renderer()`), not at load. */
   private host: Host | undefined;
-  private results!: ResultCache;
+  private results: ResultCache | undefined;
   private documents!: DocumentData;
   private workerUrl: string | undefined;
   private readonly drawn = new Set<Drawn>();
@@ -78,8 +79,6 @@ export default class GnuplotPlugin extends Plugin {
       const root = this.vaultRoot();
       return root ? { root, document: join(root, notePath) } : {};
     });
-    this.workerUrl = URL.createObjectURL(new Blob([WORKER_SOURCE], { type: 'text/javascript' }));
-    this.startHost();
 
     this.registerMarkdownCodeBlockProcessor(WORD, (source, el, ctx) => this.process(source, el, ctx));
     this.addSettingTab(new GnuplotSettingTab(this.app, this));
@@ -157,26 +156,34 @@ export default class GnuplotPlugin extends Plugin {
     return adapter instanceof FileSystemAdapter ? adapter.getBasePath() : undefined;
   }
 
-  private startHost(): void {
-    const url = this.workerUrl!;
-    this.host = createHost(
+  /**
+   * The renderer, started on first use: a vault with no gnuplot blocks never starts the worker or
+   * loads the engine. (Data-file reading, on the main thread, needs no start-up.)
+   */
+  private renderer(): ResultCache {
+    if (this.results) return this.results;
+    this.workerUrl ??= URL.createObjectURL(new Blob([WORKER_SOURCE], { type: 'text/javascript' }));
+    const url = this.workerUrl;
+    const host = createHost(
       () => new Worker(url, { name: 'gnuplot-plot-preview' }) as unknown as WorkerLike,
       { timeout: this.settings.timeoutSeconds * 1000 }
     );
-    const host = this.host;
+    this.host = host;
     this.results = resultCache((prepared) => host.render(prepared));
+    return this.results;
   }
 
-  /** A fresh worker with the current settings, and every open note drawn again. */
+  /** Stop the worker; the next plot starts a fresh one with the current settings. */
   private restart(): void {
     this.host?.dispose();
-    this.startHost();
+    this.host = undefined;
+    this.results = undefined;
     this.rerender();
   }
 
   /** Gnuplot: Refresh Data: read every data file again and render every plot again. */
   private refreshData(): void {
-    this.results.clear();
+    this.results?.clear();
     this.documents.clear();
     for (const drawn of this.drawn) void drawn.draw();
   }
@@ -235,8 +242,7 @@ export default class GnuplotPlugin extends Plugin {
   }
 
   private async process(source: string, el: HTMLElement, ctx: MarkdownPostProcessorContext): Promise<void> {
-    const parts = buildFence(el.ownerDocument, source, fenceKey(source));
-    el.append(parts.wrapper);
+    const parts = buildFence(el, source, fenceKey(source));
     let attributes: FenceAttributes = {};
     let generation = 0;
     const drawn: Drawn = {
@@ -259,7 +265,7 @@ export default class GnuplotPlugin extends Plugin {
           this.track(drawn, paths);
           const result = typeof input === 'string'
             ? { status: 'failure' as const, message: input }
-            : await this.results.render(input);
+            : await this.renderer().render(input);
           if (current()) showResult(parts.rendering, result, attributes);
         } catch (error) {
           // The host throws only for programmer errors; the block shows it rather than staying blank.

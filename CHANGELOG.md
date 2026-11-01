@@ -24,5 +24,10 @@ First version, ported from the VS Code extension
   role (lines and text lightened only as needed, filled areas darkened, hues kept), switching
   with the theme without a re-render; gnuplot's white canvas becomes transparent. A setting keeps
   plots on a white card instead.
-- Settings: render time limit, following dark themes, debug logging.
+- Settings: render time limit, following dark themes, debug logging; listed in Obsidian's settings
+  search (1.13 and later).
+- The renderer starts with the first plot drawn, not when Obsidian starts.
+- Plots draw in embedded notes, hover previews and PDF export, and are built with Obsidian's DOM
+  helpers, so pop-out windows get their own elements.
+- On an Obsidian whose Chromium lacks `light-dark()`, plots keep their white card.
 - Commands: refresh data; restart the renderer; show every plot in the current note.

@@ -124,6 +124,11 @@ thread by the renderer's own file reader, which keeps every file inside the vaul
 symbolic links and checks sizes. Nothing is downloaded, installed or written to disk; the worker
 and the engine are embedded in `main.js`. See `docs/adr/0001-runtime-host.md`.
 
+The worker starts with the first plot drawn, so a vault without gnuplot blocks never loads the
+engine. Plots also draw in embedded notes, hover previews, Canvas cards and exported PDFs (in light colours).
+Settings appear in Obsidian's settings search on 1.13 and later. On an Obsidian whose built-in
+Chromium predates `light-dark()`, plots keep the white card in dark themes.
+
 Desktop only: data files are read with Node's file system.
 
 ## Development

@@ -19,7 +19,7 @@ const ICON_CODE = `<svg ${LUCIDE} class="svg-icon lucide-code-2 gnuplot-icon-cod
 const ICON_GRAPH = `<svg ${LUCIDE} class="svg-icon lucide-network gnuplot-icon-graph">` +
   '<rect x="16" y="16" width="6" height="6" rx="1"></rect><rect x="2" y="16" width="6" height="6" rx="1"></rect><rect x="9" y="2" width="6" height="6" rx="1"></rect>' +
   '<path d="M5 16v-3a1 1 0 0 1 1-1h12a1 1 0 0 1 1 1v3"></path><path d="M12 12V8"></path></svg>';
-const TOGGLE = `<button type="button" class="gnuplot-toggle clickable-icon" aria-pressed="false" aria-label="Show source">${ICON_CODE}${ICON_GRAPH}</button>`;
+const TOGGLE = `<button class="gnuplot-toggle clickable-icon" type="button" aria-pressed="false" aria-label="Show source">${ICON_CODE}${ICON_GRAPH}</button>`;
 
 // The DOM contract, asserted exactly once, here.
 test('every block is wrapped: toggle first, rendering slot, then the source <pre>', () => {
@@ -60,7 +60,7 @@ test('setView flips the wrapper, the button state and its name, and back', () =>
 test('an error card, a throwing renderer and the loading placeholder sit in the rendering slot', () => {
   assert.equal(rendering(fence('gnuplot', 'plot x\n', { status: 'failure', message: 'bad' })),
     '<div class="gnuplot-error" role="alert"><pre>Gnuplot error: bad</pre></div>');
-  const parts = buildFence(document, 'plot x\n', fenceKey('plot x\n'));
+  const parts = buildFence(document.createElement('div'), 'plot x\n', fenceKey('plot x\n'));
   showError(parts.rendering, 'Gnuplot is unavailable: boom');
   assert.equal(rendering(parts.wrapper), '<div class="gnuplot-error" role="alert"><pre>Gnuplot is unavailable: boom</pre></div>');
   // The placeholder goes through the plot's frame, so a caption still frames it.
@@ -70,7 +70,7 @@ test('an error card, a throwing renderer and the loading placeholder sit in the 
 });
 
 test('errors are localized and escaped', () => {
-  const parts = buildFence(document, 'bad\n', fenceKey('bad\n'));
+  const parts = buildFence(document.createElement('div'), 'bad\n', fenceKey('bad\n'));
   showError(parts.rendering, 'Gnuplot is unavailable: <script> & "bad"');
   assert.match(rendering(parts.wrapper), /gnuplot-error/);
   assert.match(rendering(parts.wrapper), /&lt;script&gt; &amp;/);
@@ -112,7 +112,7 @@ test('valid attributes survive unknown, malformed and duplicate fields', () => {
 });
 
 test('loading status remains accessible and empty attributes are accepted', () => {
-  const parts = buildFence(document, 'plot x', fenceKey('plot x'));
+  const parts = buildFence(document.createElement('div'), 'plot x', fenceKey('plot x'));
   showLoading(parts.rendering, fenceAttributes('gnuplot {alt="curve" caption=""}'));
   assert.match(rendering(parts.wrapper), /role="status"/);
   assert.doesNotMatch(rendering(parts.wrapper), /role="img"/);

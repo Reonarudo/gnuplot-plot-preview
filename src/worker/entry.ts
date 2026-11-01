@@ -126,7 +126,7 @@ start().then((render) => {
       result = { status: 'failure', message: 'gnuplot stopped unexpectedly', discard: true };
     }
     const { discard, ...rest } = result;
-    scope.postMessage(discard ? { type: 'reply', id: request.id, result: rest as RenderResult, discard } : { type: 'reply', id: request.id, result: rest as RenderResult });
+    scope.postMessage(discard ? { type: 'reply', id: request.id, result: rest, discard } : { type: 'reply', id: request.id, result: rest });
   };
   scope.postMessage({ type: 'started' });
 }, () => {
