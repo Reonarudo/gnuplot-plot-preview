@@ -1,10 +1,12 @@
 // Builds main.js: the plugin, with the render worker's bundle (and through it gnuplot's wasm)
-// embedded as a string. The plugin runs `prepare` on Obsidian's main thread, which needs Node's
-// `fs`, `path` and `crypto`, so main.js is built for Node with its built-ins left to `require`.
+// embedded as a string. The plugin runs the library's `prepare` on Obsidian's main thread, imported
+// from `#renderer/dist/prepare.js` so `nodeFileReader` (Node's `fs`) never enters main.js; data
+// files are read through the vault. `prepare` still uses Node's `crypto` and `path` (posix), so
+// main.js is built for Node with those built-ins left to `require`.
 // `--watch` rebuilds the plugin on change (the worker is bundled once per start).
 import { context } from 'esbuild';
 import { licenseBanner } from './licenses.mjs';
-import { bundleWorker } from './worker-bundle.mjs';
+import { bundleWorker, renderer } from './worker-bundle.mjs';
 
 const watch = process.argv.includes('--watch');
 const workerSource = await bundleWorker();
@@ -28,7 +30,7 @@ const ctx = await context({
   platform: 'node',
   target: 'es2022',
   external: ['obsidian', 'electron', '@codemirror/*', '@lezer/*'],
-  plugins: [embedWorker],
+  plugins: [embedWorker, renderer],
   sourcemap: watch ? 'inline' : false,
   treeShaking: true,
   logLevel: 'info',

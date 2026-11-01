@@ -26,3 +26,8 @@ declare module '#renderer/vendor/gnuplot/gnuplot.wasm' {
   const bytes: Uint8Array;
   export default bytes;
 }
+
+/** The library's `prepare` alone: the package index would also bring in `nodeFileReader` and Node's `fs`. */
+declare module '#renderer/dist/prepare.js' {
+  export { prepare } from '@reonarudo/gnuplot-renderer';
+}

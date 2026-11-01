@@ -1,9 +1,9 @@
-import { join, sep } from 'node:path';
 import {
-  FileSystemAdapter, MarkdownRenderChild, MarkdownView, Plugin, TFile, debounce,
+  MarkdownRenderChild, MarkdownView, Plugin, TFile, debounce,
   type MarkdownPostProcessorContext
 } from 'obsidian';
-import { nodeFileReader, prepare } from '@reonarudo/gnuplot-renderer';
+// Deep import: the package index also re-exports `nodeFileReader`, which needs Node's `fs`.
+import { prepare } from '#renderer/dist/prepare.js';
 import WORKER_SOURCE from 'virtual:render-worker';
 import { fenceAttributes, type FenceAttributes } from './attributes';
 import { DocumentData } from './documents';
@@ -13,6 +13,7 @@ import { locate, scanFences } from './info';
 import { resultCache, type ResultCache } from './results';
 import { DEFAULT_SETTINGS, GnuplotSettingTab, readSettings, type Settings } from './settings';
 import { ToggleStore } from './toggle';
+import { vaultFileReader } from './vault-reader';
 
 /** The language word Obsidian matches for this plugin's code blocks. */
 const WORD = 'gnuplot';
@@ -66,7 +67,7 @@ export default class GnuplotPlugin extends Plugin {
   private documents!: DocumentData;
   private workerUrl: string | undefined;
   private readonly drawn = new Set<Drawn>();
-  /** Absolute data file path to the live blocks that read it. */
+  /** Vault path of a data file to the live blocks that read it. */
   private readonly dependents = new Map<string, Set<Drawn>>();
   private readonly saveSoon = debounce(() => void this.persist(), 200, true);
 
@@ -75,10 +76,7 @@ export default class GnuplotPlugin extends Plugin {
     this.settings = readSettings(data?.settings);
     this.toggles = new ToggleStore(data?.toggles, () => this.saveSoon());
 
-    this.documents = new DocumentData({ prepare, nodeFileReader }, (notePath) => {
-      const root = this.vaultRoot();
-      return root ? { root, document: join(root, notePath) } : {};
-    });
+    this.documents = new DocumentData(prepare, (notePath, record) => vaultFileReader(this.app.vault, notePath, record));
 
     this.registerMarkdownCodeBlockProcessor(WORD, (source, el, ctx) => this.process(source, el, ctx));
     this.addSettingTab(new GnuplotSettingTab(this.app, this));
@@ -150,12 +148,6 @@ export default class GnuplotPlugin extends Plugin {
     await this.saveData({ settings: this.settings, toggles: this.toggles.toJSON() });
   }
 
-  /** The vault's folder on disk; data files are read only from a vault on the local file system. */
-  private vaultRoot(): string | undefined {
-    const adapter = this.app.vault.adapter;
-    return adapter instanceof FileSystemAdapter ? adapter.getBasePath() : undefined;
-  }
-
   /**
    * The renderer, started on first use: a vault with no gnuplot blocks never starts the worker or
    * loads the engine. (Data-file reading, on the main thread, needs no start-up.)
@@ -196,13 +188,11 @@ export default class GnuplotPlugin extends Plugin {
 
   /** A vault file changed: forget what was prepared from it and draw again the blocks that read it. */
   private dataChanged(vaultPath: string): void {
-    const root = this.vaultRoot();
-    if (!root) return;
-    const path = join(root, vaultPath);
+    const path = vaultPath;
     this.documents.invalidate(path);
     const redraw = new Set<Drawn>();
     for (const [dependency, blocks] of this.dependents) {
-      if (dependency === path || dependency.startsWith(path + sep)) for (const drawn of blocks) redraw.add(drawn);
+      if (dependency === path || dependency.startsWith(path + '/')) for (const drawn of blocks) redraw.add(drawn);
     }
     if (redraw.size) this.log(`${vaultPath} changed; drawing ${redraw.size} plot(s) again`);
     for (const drawn of redraw) void drawn.draw();

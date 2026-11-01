@@ -13,7 +13,7 @@ const root = dirname(dirname(fileURLToPath(import.meta.url)));
 const require = createRequire(join(root, 'package.json'));
 export const rendererDir = dirname(require.resolve('@reonarudo/gnuplot-renderer/package.json'));
 
-const renderer = {
+export const renderer = {
   name: 'renderer-files',
   setup(context) {
     context.onResolve({ filter: /^#renderer\// }, (args) => ({ path: join(rendererDir, args.path.slice('#renderer/'.length)) }));

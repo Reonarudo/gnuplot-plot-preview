@@ -4,7 +4,7 @@ The plugin's original TypeScript, tests, build scripts and styles are MIT licens
 `LICENSE`). This does not relicense the software below.
 
 `main.js` embeds a Web Worker bundle built from gnuplot-renderer, and bundles that package's
-data-file preparation and file reader for the main thread. Their licenses and notices are
+data-file preparation (`prepare`) for the main thread. Their licenses and notices are
 reproduced in full in the renderer package
 (`node_modules/@reonarudo/gnuplot-renderer/THIRD_PARTY_NOTICES.md` and `licenses/`); keep them with
 any redistribution.
@@ -12,8 +12,7 @@ any redistribution.
 ## Gnuplot renderer
 
 [gnuplot-renderer](https://github.com/Reonarudo/gnuplot-renderer) (MIT) supplies the engine,
-the output policy, the interpreter of the engine's output, the SVG sanitizer, `prepare` and
-`nodeFileReader`. It carries the **unmodified official gnuplot 6.0.2 release** compiled to
+the output policy, the interpreter of the engine's output, the SVG sanitizer and `prepare`. It carries the **unmodified official gnuplot 6.0.2 release** compiled to
 WebAssembly with Emscripten 6.0.9, embedded in `main.js` (`gnuplot.mjs` and `gnuplot.wasm`):
 
 - Gnuplot 6.0.2, copyright 1986–1993, 1998, 2004 Thomas Williams, Colin Kelley, with additional

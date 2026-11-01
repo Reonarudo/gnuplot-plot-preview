@@ -1,7 +1,7 @@
 {
   "id": "gnuplot-plot-preview",
   "name": "Gnuplot Plot Preview",
-  "version": "0.1.3",
+  "version": "0.1.4",
   "minAppVersion": "1.14.4",
   "description": "Render gnuplot code blocks as plots, including plots of data files in the vault, with a button to flip each one between the plot and its source.",
   "author": "Leonardo Marques",

@@ -41,10 +41,11 @@ plot "data/results.csv" using 1:2 with linespoints title "Results"
 ~~~
 
 Gnuplot reads the file's bytes as they are: use its usual separator, header and `using` options.
-Subfolders, several files and the empty-name reuse (`""`) work. Files must be inside the vault;
-`../` works within it. Absolute paths, symbolic links, URLs, computed file names and `load` or
-`call` scripts are not supported, and a file outside the vault shows "the file is outside this
-vault".
+Subfolders, several files and the empty-name reuse (`""`) work. Files are read through
+Obsidian's vault, so only files in the vault can be read: `../` works within it, and a path that
+leads outside it shows "the file is outside this vault". Files in hidden (dot) folders are not
+in Obsidian's index and show "file not found". Absolute paths, URLs, computed file names and
+`load` or `call` scripts are not supported.
 
 When the vault changes a file a plot read (an edit, or a file created, deleted or renamed, in
 Obsidian or on disk), that plot is drawn again; a plot whose file was missing recovers once the
@@ -119,8 +120,8 @@ Rendering runs in a Web Worker inside Obsidian, built from
 [gnuplot-renderer](https://github.com/Reonarudo/gnuplot-renderer): gnuplot compiled to
 WebAssembly with an in-memory filesystem that holds only the script, the plot and the data
 prepared for it, and an allowlist sanitizer for its SVG. Data files are read on Obsidian's main
-thread by the renderer's own file reader, which keeps every file inside the vault, refuses
-symbolic links and checks sizes. Nothing is downloaded, installed or written to disk; the worker
+thread through Obsidian's vault API (never Node's file system), and their size is checked before
+and after reading. Nothing is downloaded, installed or written to disk; the worker
 and the engine are embedded in `main.js`.
 
 The worker starts with the first plot drawn, so a vault without gnuplot blocks never loads the
@@ -128,7 +129,8 @@ engine. Plots also draw in embedded notes, hover previews, Canvas cards and expo
 Settings appear in Obsidian's settings search. On an Obsidian whose built-in
 Chromium predates `light-dark()`, plots keep the white card in dark themes.
 
-Desktop only: data files are read with Node's file system.
+Desktop only for now: the renderer's `prepare` uses Node's `crypto` (to fingerprint a plot and its
+data) on the main thread.
 
 ## Development
 

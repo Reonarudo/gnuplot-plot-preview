@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.4 (2026-11-01)
+
+- Data files are read only through Obsidian's vault API (`vault.readBinary`), never with Node's
+  file system: `main.js` no longer contains the `fs` module. A path that leads outside the vault
+  shows "the file is outside this vault"; files in hidden (dot) folders are not found. Plots are
+  drawn again when a vault event (modify, create, delete, rename) touches a file they read.
+
 ## 0.1.3 (2026-11-01)
 
 - Settings come only from Obsidian's declarative settings definitions; the older `display()`

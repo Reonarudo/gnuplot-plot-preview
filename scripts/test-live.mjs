@@ -639,6 +639,41 @@ try {
     throw new Error('not every plot was drawn again');
   });
 
+  await check('data is read through the vault: a file above the vault root is refused, ../ inside the vault works', async () => {
+    const fence = (body) => '```gnuplot\n' + body + '\n```\n';
+    await page.evaluate(async ({ outside, inside }) => {
+      await app.vault.create('paths-outside.md', outside);
+      await app.vault.createFolder('sub');
+      await app.vault.create('sub/relative.md', inside);
+    }, {
+      outside: '# Outside\n\n' + fence('plot "../../outside.csv"'),
+      inside: '# Relative\n\n' + fence('set datafile separator comma\nset key autotitle columnhead\nplot "../data/sine.csv" using 1:2 with lines')
+    });
+    const drawn = async (path) => {
+      await page.evaluate(async (path) => {
+        await app.workspace.getLeaf(false).openFile(app.vault.getAbstractFileByPath(path), { state: { mode: 'preview' } });
+      }, path);
+      for (let i = 0; i < 80; i++) {
+        await sleep(100);
+        const found = await page.evaluate((base) => {
+          const slot = app.workspace.activeLeaf.view.containerEl.querySelector(`.markdown-reading-view .${base}-rendering`);
+          if (!slot) return null;
+          if (slot.querySelector(`svg.${base}`)) return { plot: true };
+          const error = slot.querySelector(`.${base}-error pre`)?.textContent;
+          return error ? { error } : null;
+        }, BASE);
+        if (found) return found;
+      }
+      throw new Error(`${path} was not drawn`);
+    };
+    assert.deepEqual(await drawn('paths-outside.md'),
+      { error: 'Gnuplot error at line 1, column 6: cannot load data file "../../outside.csv": the file is outside this vault' });
+    assert.deepEqual(await drawn('sub/relative.md'), { plot: true });
+    await page.evaluate(async () => {
+      await app.workspace.getLeaf(false).openFile(app.vault.getAbstractFileByPath('view-toggle.md'), { state: { mode: 'preview' } });
+    });
+  });
+
   await check('the renderer runs in a browser Worker and stops with the plugin', async () => {
     const stopped = await page.evaluate(async (id) => {
       const plugin = app.plugins.plugins[id];
