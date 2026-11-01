@@ -125,7 +125,7 @@ and the engine are embedded in `main.js`.
 
 The worker starts with the first plot drawn, so a vault without gnuplot blocks never loads the
 engine. Plots also draw in embedded notes, hover previews, Canvas cards and exported PDFs (in light colours).
-Settings appear in Obsidian's settings search on 1.13 and later. On an Obsidian whose built-in
+Settings appear in Obsidian's settings search. On an Obsidian whose built-in
 Chromium predates `light-dark()`, plots keep the white card in dark themes.
 
 Desktop only: data files are read with Node's file system.

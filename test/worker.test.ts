@@ -129,8 +129,8 @@ test('dark-theme colours: all eight default line colours read on the dark page, 
     // Point markers draw in `currentColor`, through the `color` property.
     assert.ok(pairs('color').some((pair) => pair.light === colour && contrast(dark(pair.dark), DARK_PAGE) >= LINE_CONTRAST), `color ${colour}`);
   }
-  // Black text (the group fill) becomes Obsidian's text colour; the white canvas becomes the page.
+  // Black text (the group fill) becomes Obsidian's text colour; the white canvas becomes transparent.
   assert.ok(pairs('fill').some((pair) => pair.light === 'black' && pair.dark === 'var(--text-normal)'));
   const canvas = svg.querySelector(':scope > g > rect')!;
-  assert.match(canvas.getAttribute('style')!, /^fill:light-dark\(#ffffff, rgb\(30, 30, 30\)\)$/);
+  assert.equal(canvas.getAttribute('style'), 'fill:light-dark(#ffffff, transparent)');
 });

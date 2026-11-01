@@ -1,4 +1,4 @@
-import { PluginSettingTab, Setting, type App, type SettingDefinitionItem } from 'obsidian';
+import { PluginSettingTab, type App, type SettingDefinitionItem } from 'obsidian';
 import type GnuplotPlugin from './main';
 
 export interface Settings {
@@ -27,7 +27,7 @@ export function readSettings(stored: unknown): Settings {
   };
 }
 
-/** Names and descriptions, shared by both ways of drawing the tab. */
+/** Names and descriptions of the settings. */
 const LABELS = {
   timeoutSeconds: {
     name: 'Render time limit',
@@ -52,7 +52,7 @@ export class GnuplotSettingTab extends PluginSettingTab {
     super(app, plugin);
   }
 
-  /** Obsidian 1.13 and later: the settings as definitions, so they appear in settings search. */
+  /** The settings as definitions: Obsidian draws them, and lists them in settings search. */
   getSettingDefinitions(): SettingDefinitionItem[] {
     return [
       { ...LABELS.timeoutSeconds, control: { type: 'number', key: 'timeoutSeconds', min: TIMEOUT_RANGE.min, max: TIMEOUT_RANGE.max, step: 'any', defaultValue: DEFAULT_SETTINGS.timeoutSeconds, validate: checkTimeout } },
@@ -70,38 +70,5 @@ export class GnuplotSettingTab extends PluginSettingTab {
     if (!(key in DEFAULT_SETTINGS)) return;
     const next = readSettings({ ...this.plugin.settings, [key]: value });
     await this.plugin.updateSettings({ [key]: next[key as keyof Settings] });
-  }
-
-  /** Obsidian before 1.13 draws the tab from here. */
-  display(): void {
-    const { containerEl } = this;
-    containerEl.empty();
-    const settings = this.plugin.settings;
-
-    new Setting(containerEl)
-      .setName(LABELS.timeoutSeconds.name)
-      .setDesc(LABELS.timeoutSeconds.desc)
-      .addText((text) => text
-        .setPlaceholder(String(DEFAULT_SETTINGS.timeoutSeconds))
-        .setValue(String(settings.timeoutSeconds))
-        .onChange(async (raw) => {
-          const seconds = Number(raw);
-          if (checkTimeout(seconds) !== undefined) return;
-          await this.plugin.updateSettings({ timeoutSeconds: seconds });
-        }));
-
-    new Setting(containerEl)
-      .setName(LABELS.followDarkTheme.name)
-      .setDesc(LABELS.followDarkTheme.desc)
-      .addToggle((toggle) => toggle
-        .setValue(settings.followDarkTheme)
-        .onChange(async (value) => this.plugin.updateSettings({ followDarkTheme: value })));
-
-    new Setting(containerEl)
-      .setName(LABELS.debug.name)
-      .setDesc(LABELS.debug.desc)
-      .addToggle((toggle) => toggle
-        .setValue(settings.debug)
-        .onChange(async (value) => this.plugin.updateSettings({ debug: value })));
   }
 }

@@ -151,8 +151,10 @@ export function showResult(rendering: HTMLElement, result: RenderResult, attribu
     showError(rendering, 'Gnuplot is unavailable: the renderer returned a plot that could not be read');
     return;
   }
-  // Every colour gets its dark-theme counterpart; the stylesheet decides which one shows.
+  // Every colour gets its dark-theme counterpart; the stylesheet decides which one shows. The
+  // terminal's opaque white canvas, first in its group, becomes transparent in dark themes.
   themeSvg(svg);
+  clearBackgroundInDark(svg.querySelector(':scope > g[id$="-gnuplot_canvas"] > rect'));
   rendering.empty();
   // `print` output and gnuplot's warnings.
   if (result.notes.length) {
@@ -163,4 +165,16 @@ export function showResult(rendering: HTMLElement, result: RenderResult, attribu
     });
   }
   frame(rendering, svg, attributes);
+}
+
+/**
+ * In dark themes, `shape` (the drawing's own full-size white background) becomes transparent, so
+ * the drawing sits on whatever is behind it (the page, a callout) instead of on a box: its dark
+ * colour is `transparent`. The light colour stays the original, kept in the `fill` attribute.
+ */
+export function clearBackgroundInDark(shape: Element | null): void {
+  const original = shape?.getAttribute('fill');
+  if (!shape || !original) return;
+  const others = (shape.getAttribute('style') ?? '').split(';').filter((part) => part.trim() && !/^\s*fill\s*:/.test(part));
+  shape.setAttribute('style', [...others, `fill:light-dark(${original}, transparent)`].join(';'));
 }

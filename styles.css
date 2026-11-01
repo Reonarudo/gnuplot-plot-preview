@@ -37,14 +37,6 @@ body.theme-dark.gnuplot-follow-dark svg.gnuplot {
   }
 }
 
-/* The library's terminal paints an opaque white rectangle over the whole canvas, first in it. Its
-   dark colour is the default page's; made transparent, the plot sits on whatever is behind it (a
-   callout, a custom theme's page) instead of showing as a box. `!important` beats the inline
-   `light-dark()` style src/theme.ts writes. */
-body.theme-dark.gnuplot-follow-dark svg.gnuplot > g[id$="-gnuplot_canvas"] > rect:first-child {
-  fill: transparent !important;
-}
-
 .gnuplot-markdown-preview figcaption {
   margin-top: .5em;
   text-align: center;
