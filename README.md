@@ -26,8 +26,7 @@ eight of gnuplot's default line colours read on Obsidian's dark page (yellow, li
 orange unchanged; purple and dark blue lightened a little); black axes and text take Obsidian's
 text colour, and gnuplot's white canvas becomes transparent, so a plot in a callout sits on the
 callout. In a light theme plots sit on a white card with their exact colours. To keep every plot
-on a white card, turn off **Follow dark themes** in the plugin's settings. See
-`docs/adr/0002-dark-theme-colours.md`.
+on a white card, turn off **Follow dark themes** in the plugin's settings.
 
 ## Data files
 
@@ -122,7 +121,7 @@ WebAssembly with an in-memory filesystem that holds only the script, the plot an
 prepared for it, and an allowlist sanitizer for its SVG. Data files are read on Obsidian's main
 thread by the renderer's own file reader, which keeps every file inside the vault, refuses
 symbolic links and checks sizes. Nothing is downloaded, installed or written to disk; the worker
-and the engine are embedded in `main.js`. See `docs/adr/0001-runtime-host.md`.
+and the engine are embedded in `main.js`.
 
 The worker starts with the first plot drawn, so a vault without gnuplot blocks never loads the
 engine. Plots also draw in embedded notes, hover previews, Canvas cards and exported PDFs (in light colours).
