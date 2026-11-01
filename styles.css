@@ -1,0 +1,174 @@
+/* Gnuplot Plot Preview. Ported from gnuplot-markdown-preview's media/preview.css, with VS Code's
+   theme variables replaced by Obsidian's. */
+
+.gnuplot-markdown-preview {
+  overflow-x: auto;
+  margin: 1em 0;
+}
+
+/* The library's SVG has a viewBox and no size; 1000px is the terminal's canvas. Plots sit on a
+   white card, as in the VS Code extension, unless they follow a dark theme (below). */
+.gnuplot-markdown-preview svg {
+  display: block;
+  width: 1000px;
+  max-width: 100%;
+  height: auto;
+  background: white;
+  color-scheme: light;
+}
+
+/* "Follow dark themes" (on by default): like Mermaid, the plot sits on the page in dark-theme
+   colours. Every colour in it is `light-dark(<original>, <dark>)` (src/theme.ts); the plot's
+   colour scheme picks one, so switching themes needs no re-render. */
+svg.gnuplot {
+  color-scheme: light;
+}
+
+body.theme-dark.gnuplot-follow-dark svg.gnuplot {
+  background: none;
+  color-scheme: dark;
+}
+
+/* The library's terminal paints an opaque white rectangle over the whole canvas, first in it. Its
+   dark colour is the default page's; made transparent, the plot sits on whatever is behind it (a
+   callout, a custom theme's page) instead of showing as a box. `!important` beats the inline
+   `light-dark()` style src/theme.ts writes. */
+body.theme-dark.gnuplot-follow-dark svg.gnuplot > g[id$="-gnuplot_canvas"] > rect:first-child {
+  fill: transparent !important;
+}
+
+.gnuplot-markdown-preview figcaption {
+  margin-top: .5em;
+  text-align: center;
+  color: var(--text-muted);
+}
+
+.gnuplot-notes {
+  font-family: var(--font-monospace, monospace);
+  white-space: pre-wrap;
+  margin: 1em 0 .25em;
+  opacity: .8;
+}
+
+.gnuplot-error {
+  border-inline-start: 3px solid var(--text-warning, #b58900);
+  padding: .5em 1em;
+  margin: 1em 0;
+}
+
+.gnuplot-error pre {
+  white-space: pre-wrap;
+  margin: 0;
+  background: none;
+  padding: 0;
+}
+
+.gnuplot-loading {
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+/* ---- The view toggle. ----
+   Reading view: a button dressed as Obsidian's own "Edit this block" button (the one Mermaid and
+   every rendered code block get in Live Preview): same corner, size, colours and hover fade.
+   Live Preview: hidden, and the block always shows its plot; Obsidian's button opens the
+   fence for editing, exactly as for Mermaid. */
+
+.gnuplot-fence {
+  position: relative;
+}
+
+/* Keep the button's corner clear, so it never sits on a plot. A plot fills the column and
+   gnuplot's key sits in its top-right corner, so the slot's top padding moves the plot (or card)
+   below the button instead of narrowing it. Not in the VS Code extension, where the overlap was
+   accepted. */
+.gnuplot-fence > .gnuplot-rendering {
+  padding-top: 28px;
+}
+
+.gnuplot-fence > pre {
+  display: none;
+}
+
+.gnuplot-fence[data-view="source"] > .gnuplot-rendering {
+  display: none;
+}
+
+.gnuplot-fence[data-view="source"] > pre {
+  display: block;
+  margin: 0;
+  padding-inline-end: 44px;
+  overflow-x: auto;
+}
+
+.gnuplot-fence > .gnuplot-toggle {
+  position: absolute;
+  inset-block-start: var(--size-2-2, 4px);
+  inset-inline-end: var(--size-2-2, 4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: auto;
+  height: auto;
+  padding: var(--size-2-2, 4px) var(--size-2-3, 6px);
+  border: none;
+  border-radius: var(--clickable-icon-radius, 8px);
+  background: transparent;
+  box-shadow: none;
+  color: var(--icon-color);
+  cursor: var(--cursor, pointer);
+  opacity: 0;
+  transition: opacity 0.07s ease-out;
+  z-index: 1;
+}
+
+.gnuplot-fence:hover > .gnuplot-toggle,
+.gnuplot-fence > .gnuplot-toggle:focus-visible {
+  opacity: 1;
+}
+
+.gnuplot-fence > .gnuplot-toggle:hover {
+  background: var(--background-modifier-hover);
+  color: var(--icon-color-hover, var(--icon-color));
+}
+
+.gnuplot-fence > .gnuplot-toggle:focus-visible {
+  box-shadow: 0 0 0 2px var(--background-modifier-border-focus, var(--interactive-accent));
+}
+
+.gnuplot-toggle svg {
+  width: var(--icon-size, 16px);
+  height: var(--icon-size, 16px);
+  stroke-width: var(--icon-stroke, 2px);
+}
+
+/* The glyph names the view the click leads to. */
+.gnuplot-toggle .gnuplot-icon-graph {
+  display: none;
+}
+
+.gnuplot-fence[data-view="source"] .gnuplot-toggle .gnuplot-icon-code {
+  display: none;
+}
+
+.gnuplot-fence[data-view="source"] .gnuplot-toggle .gnuplot-icon-graph {
+  display: inline;
+}
+
+/* Live Preview: Obsidian's own button is the control, and a flip made in Reading view does not
+   apply; the corner is left to Obsidian. */
+.markdown-source-view .gnuplot-fence > .gnuplot-toggle {
+  display: none;
+}
+
+.markdown-source-view .gnuplot-fence[data-view="source"] > .gnuplot-rendering {
+  display: block;
+}
+
+.markdown-source-view .gnuplot-fence[data-view="source"] > pre {
+  display: none;
+}
+
+.markdown-source-view .gnuplot-fence > .gnuplot-rendering {
+  padding-top: 0;
+}
