@@ -1,37 +1,47 @@
 # Gnuplot Plot Preview
 
-Renders [gnuplot](https://www.gnuplot.info/) code blocks as plots in Obsidian, in Reading view
-and Live Preview, with gnuplot 6.0.2 compiled to WebAssembly. No system gnuplot is needed. A port
-of the VS Code extension [gnuplot-markdown-preview](https://github.com/Reonarudo/gnuplot-markdown-preview).
-
-## Usage
+Plot functions and data in your notes with [gnuplot](http://www.gnuplot.info). Write a `gnuplot`
+code block and the plot appears in its place, in Reading view and Live Preview. Gnuplot is built
+into the plugin, so there's nothing else to install. Desktop only.
 
 ~~~markdown
 ```gnuplot
 set grid
 set xrange [-10:10]
-
-plot sin(x) title "sin(x)", \
-     cos(x) title "cos(x)"
+plot sin(x) title "sin(x)", cos(x) title "cos(x)"
 ```
 ~~~
 
-Functions, inline datablocks (`$data << EOD`), several plots in one `set multiplot`, and 3D
-plots (`splot`) all work. Every plot is drawn on a 1000×500 SVG canvas, scaled to the column.
+## Features
 
-Plots follow the theme, as Mermaid diagrams do. In a dark theme they sit on the page in
-dark-theme colours: lines and text are lightened only as far as needed to read, filled areas are
-darkened, and hues are kept, so colours that already read on a dark page stay as they are. All
-eight of gnuplot's default line colours read on Obsidian's dark page (yellow, light blue and
-orange unchanged; purple and dark blue lightened a little); black axes and text take Obsidian's
-text colour, and gnuplot's white canvas becomes transparent, so a plot in a callout sits on the
-callout. In a light theme plots sit on a white card with their exact colours. To keep every plot
-on a white card, turn off **Follow dark themes** in the plugin's settings.
+- Plots in Reading view, Live Preview, embedded notes, hover previews, Canvas cards and exported
+  PDFs.
+- Plot data from CSV, DAT or TXT files in your vault; plots redraw when those files change.
+- Functions, inline data, 3D plots (`splot`) and multiplots.
+- Captions and alt text for each plot.
+- A button to see a plot's code without leaving Reading view.
+- Follows your theme: plots stay readable in dark themes.
+- Works offline.
 
-## Data files
+## Install
 
-A plot may read `.csv`, `.dat` and `.txt` files named literally in `plot` and `splot`, relative
-to the note:
+1. In Obsidian, open **Settings → Community plugins** and turn off **Restricted mode** if it's on.
+2. Select **Browse**, search for **Gnuplot Plot Preview**, then select **Install** and **Enable**.
+
+To install by hand instead, download `main.js`, `manifest.json` and `styles.css` from the
+[latest release](https://github.com/Reonarudo/gnuplot-plot-preview/releases/latest) into
+`<your vault>/.obsidian/plugins/gnuplot-plot-preview/`, then enable the plugin.
+
+## Writing plots
+
+Put gnuplot commands in a code block tagged `gnuplot`. Every plot is drawn 1000 × 500 and scaled to
+fit the note. Each block starts fresh, so variables and data don't carry over from other blocks.
+
+The plugin chooses the output format itself, so leave out `set terminal` and `set output`.
+
+### Plotting data files
+
+Name a `.csv`, `.dat` or `.txt` file in `plot` or `splot`, relative to the note:
 
 ~~~markdown
 ```gnuplot
@@ -40,119 +50,86 @@ plot "data/results.csv" using 1:2 with linespoints title "Results"
 ```
 ~~~
 
-Gnuplot reads the file's bytes as they are: use its usual separator, header and `using` options.
-Subfolders, several files and the empty-name reuse (`""`) work. Files are read through
-Obsidian's vault, so only files in the vault can be read: `../` works within it, and a path that
-leads outside it shows "the file is outside this vault". Files in hidden (dot) folders are not
-in Obsidian's index and show "file not found". Absolute paths, URLs, computed file names and
-`load` or `call` scripts are not supported.
+- Paths start from the note's folder. `../` reaches other folders of the vault.
+- Only files in your vault can be read. A path that leads outside it shows "the file is outside
+  this vault".
+- Files in hidden folders (names starting with `.`) aren't found, because Obsidian doesn't index
+  them.
+- Write the file name directly; names built from variables, URLs, and `load` or `call` aren't
+  supported.
+- When a data file changes, is created, deleted or renamed, the plots that use it redraw.
+  **Refresh data** in the command palette rereads every file.
 
-When the vault changes a file a plot read (an edit, or a file created, deleted or renamed, in
-Obsidian or on disk), that plot is drawn again; a plot whose file was missing recovers once the
-file exists. **Refresh data** in the command palette reads every file again and draws every plot
-again.
+### Captions and alt text
 
-Limits: 1 MiB per file, 4 MiB and 16 files per plot, 32 MiB of file data held at once (data of
-notes no longer open is let go), and eight files being read at a time.
-
-## Fence attributes
+Add options in braces after `gnuplot`:
 
 ~~~markdown
-```gnuplot {alt="Sine and cosine curves" caption="Figure 1: Trigonometric functions"}
+```gnuplot {caption="Figure 1: Trigonometric functions" alt="Sine and cosine curves"}
 plot sin(x), cos(x)
 ```
 ~~~
 
-- `alt`: an accessible name for the plot, for readers using assistive technology.
-- `caption`: plain text shown beneath the plot.
+| Option | What it does |
+| --- | --- |
+| `caption` | Text shown under the plot. |
+| `alt` | A description read aloud by screen readers. |
 
-Both are optional, in either order. Use single or double quotes; a backslash escapes a matching
-quote or a backslash. Values are plain text, never Markdown or HTML. Unknown or malformed fields
-are silently skipped and the plot still renders; valid fields around them are kept, and the first
-value of a duplicate wins. A block that is not wrapped in braces is ignored entirely.
+Put each value in quotes. Values are plain text, not Markdown. If an option is misspelled, it's
+ignored and the plot still appears.
 
-Attributes are read from the note's text. Where Obsidian renders a block without its note (some
-embeds and exports), the plot renders bare.
+## Viewing the code
 
-## Viewing the source
+- **Reading view:** hover over a plot and select the **</>** button just above it to see the code.
+  Select it again to see the plot. Obsidian remembers which plots you switched, even after a
+  restart. **Show every plot in this note** in the command palette switches them all back.
+- **Live Preview:** select Obsidian's own **Edit this block** button, just as for a Mermaid
+  diagram.
 
-The plugin follows Obsidian's own handling of Mermaid diagrams:
+## Dark and light themes
 
-- **Live Preview:** hovering a plot shows Obsidian's **Edit this block** button in its top
-  corner, which opens the code block for editing, as for Mermaid. Live Preview always shows the
-  plot.
-- **Reading view:** hovering a plot shows a button of the same look in the same corner, just
-  above the plot so it never covers gnuplot's key: **Show source** flips the block to its source
-  text; **Show plot** flips it back. A flipped block stays flipped across re-renders, data
-  changes, reopening the note and restarting Obsidian, and in every Reading view of the note. Two
-  blocks with the same body are told apart by their order. **Show every plot in this note** in
-  the command palette flips them all back.
+Plots follow your theme. In a dark theme, the white background disappears, axes and text take your
+theme's text colour, and every default line colour stays easy to tell apart. In a light theme,
+plots appear on a white card with their exact colours.
 
-## Errors and limits
-
-A block gnuplot rejects shows the error, with its line and column within the block, in place of
-the plot; a data-file error points at the file name as written. `print` output and gnuplot's
-warnings appear as text above the plot. The plugin sets the SVG terminal and output: `set
-terminal` and `set output` are rejected. Every block starts from clean gnuplot memory, so
-variables and datablocks do not carry between blocks.
-
-Each plot has three seconds to render (adjustable in settings, from half a second to a minute).
-A plot that runs past it shows a time-out and is not tried again until **Refresh data**. Source is
-limited to 64 000 characters and the SVG to 4 MiB.
+To always show the exact colours on a white card, turn off **Follow dark themes** in the plugin's
+settings.
 
 ## Settings
 
-- **Render time limit**: seconds each plot may take (default 3).
-- **Follow dark themes**: in a dark theme, draw plots in dark-theme colours, lines and text
-  lightened just enough to read, hues kept (default on). Off keeps every plot on a white card
-  with its exact colours.
-- **Debug logging**: report render failures and data-file changes in the developer console.
+| Setting | What it does |
+| --- | --- |
+| **Render time limit** | How long a plot may take before it's shown as an error. 3 seconds by default, from 0.5 to 60. |
+| **Follow dark themes** | On by default. Turn off to keep every plot on a white card. |
+| **Debug logging** | Writes render failures and data file changes to the developer console. |
 
 ## Commands
 
-- **Refresh data**: read every data file again, forget cached plots, and draw every plot again.
-- **Restart renderer**: stop the render worker and start a fresh one.
-- **Show every plot in this note**: flip every block of the current note back to its plot.
+| Command | What it does |
+| --- | --- |
+| **Refresh data** | Reads every data file again and redraws every plot. |
+| **Show every plot in this note** | Switches every block in the note back from code to plot. |
+| **Restart renderer** | Starts gnuplot afresh and redraws open notes. |
 
-## How it renders
+## When something goes wrong
 
-Rendering runs in a Web Worker inside Obsidian, built from
-[gnuplot-renderer](https://github.com/Reonarudo/gnuplot-renderer): gnuplot compiled to
-WebAssembly with an in-memory filesystem that holds only the script, the plot and the data
-prepared for it, and an allowlist sanitizer for its SVG. Data files are read on Obsidian's main
-thread through Obsidian's vault API (never Node's file system), and their size is checked before
-and after reading. Nothing is downloaded, installed or written to disk; the worker
-and the engine are embedded in `main.js`.
+- **A mistake in the commands:** gnuplot's error and its line and column within the block appear
+  in place of the plot. Text written with `print`, and gnuplot's warnings, appear above the plot.
+- **"Took longer than…":** the plot hit the **Render time limit**. Simplify it, or raise the limit
+  in settings, then use **Refresh data**.
+- **Size limits:** a block may hold up to 64,000 characters. Each data file may be up to 1 MB, and
+  a plot may use up to 16 files and 4 MB of data in all.
 
-The worker starts with the first plot drawn, so a vault without gnuplot blocks never loads the
-engine. Plots also draw in embedded notes, hover previews, Canvas cards and exported PDFs (in light colours).
-Settings appear in Obsidian's settings search. On an Obsidian whose built-in
-Chromium predates `light-dark()`, plots keep the white card in dark themes.
+## Privacy
 
-Desktop only for now: the renderer's `prepare` uses Node's `crypto` (to fingerprint a plot and its
-data) on the main thread.
+Plots are drawn on your device, inside Obsidian. The plugin doesn't connect to the internet and
+doesn't collect any data. It reads only the data files your plots name, and only from your vault,
+through Obsidian. It never writes files.
 
-## Development
+## Credits
 
-Requires Node 22 or newer (see `.nvmrc`).
+Plots are drawn by [gnuplot](http://www.gnuplot.info). The licenses of the software built into
+this plugin are listed in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
 
-~~~sh
-npm ci
-npm run lint        # tsc --noEmit
-npm test            # node --test: attributes, toggle, scanner, DOM, caches, host, and the real worker bundle
-npm run build       # main.js, with the worker bundle (and gnuplot's wasm) embedded
-npm run vault       # link this repo into ../test-vault as an enabled plugin, examples in gnuplot/
-npm run test:live   # a real Obsidian with a throwaway profile and vault, driven over CDP
-~~~
-
-`npm run test:live` needs Obsidian installed (`OBSIDIAN_EXECUTABLE` overrides the path); it
-prints where it saved light and dark screenshots.
-
-The renderer is pinned to a release tarball in `package.json` (`.npmrc` sets
-`allow-remote=root` for npm 12). To take a new release, edit the URL, run `npm install`, check
-`src/worker/entry.ts` against the release's `src/worker.ts`, and run the tests.
-
-## License
-
-MIT for the plugin's own code. Gnuplot, embedded in `main.js` through gnuplot-renderer, has its
-own license; see `THIRD_PARTY_NOTICES.md`.
+Released under the [MIT License](LICENSE). To build or change the plugin, see
+[DEVELOPMENT.md](DEVELOPMENT.md).
